@@ -149,10 +149,16 @@ foreach ($values as $value)
 	
 	<div class="ui secondary menu">
 		<a href="#" class="item"
-			id="start-download"
+			id="start-parallel"
 		>
 			<i class="cloud download icon"></i>
-			処理開始
+			並列処理開始
+		</a>
+		<a href="#" class="item"
+			id="start-sequencial"
+		>
+			<i class="cloud download icon"></i>
+			直列処理開始
 		</a>
 	</div>
 
@@ -181,10 +187,12 @@ $(function ()
 {
 	var table = $('#table1');
 	var select = $('#tokusc-select > a.item');
-	var start = $('#start-download');
+	var parallel = $('#start-parallel');
+	var sequencial = $('#start-sequencial');
 
 	select.on('click', selectTokuscClick);
-	start.on('click', startDownloadsClick);
+	parallel.on('click', startParallelsClick);
+	sequencial.on('click', startSequencialsClick);
 	
 	function selectTokuscClick()
 	{
@@ -203,14 +211,20 @@ $(function ()
 			$this.addClass(selected);
 		}
 	}
-	function startDownloadsClick()
+	function startParallelsClick()
 	{
-		startDownloads(table);
+		startParallels(table);
+	}
+	function startSequencialsClick()
+	{
+		startSequencials(table);
 	}
 });
 function selectTokusc(table, tokusc, selected)
 {
 	var tbody = table.find('tbody');
+
+	tbody.find('tr.complete').remove();
 
 	if (selected === false)
 	{
@@ -232,18 +246,20 @@ function selectTokusc(table, tokusc, selected)
 
 	tr.find('td.tokusc').text(tokusc);
 }
-function startDownloads(table)
+function startParallels(table)
 {
+	table.find('tbody > tr.complete').remove();
+
 	table.find('tbody > tr')
 		.removeClass('error processing downloading')
 		.each(function ()
 		{
 			var tr = $(this);
-			startDownload(tr);
+			startParallel(tr);
 		})
 	;
 }
-function startDownload(tr)
+function startParallel(tr)
 {
 	var tokusc = tr.attr('tokusc');
 	var process = tr.find('td.process');
@@ -312,6 +328,15 @@ function startDownload(tr)
 			onComplete(tr.closest('table'));
 		}
 	}
+}
+function startSequencials(table)
+{
+	var tbody = table.find('tbody');
+	tbody.find('tr.complete').remove();
+	tbody.find('tr').each(function ()
+	{
+		var tr = $(this);
+	});
 }
 function onComplete(table)
 {
