@@ -192,7 +192,7 @@ $(function ()
 
 	select.on('click', selectTokuscClick);
 	parallel.on('click', startParallelsClick);
-	sequencial.on('click', startSequencialsClick);
+	sequencial.on('click', startSequentialsClick);
 	
 	function selectTokuscClick()
 	{
@@ -215,9 +215,9 @@ $(function ()
 	{
 		startParallels(table);
 	}
-	function startSequencialsClick()
+	function startSequentialsClick()
 	{
-		startSequencials(table);
+		startSequentials(table);
 	}
 });
 function selectTokusc(table, tokusc, selected)
@@ -246,6 +246,9 @@ function selectTokusc(table, tokusc, selected)
 
 	tr.find('td.tokusc').text(tokusc);
 }
+/*=============================================================
+  = parallel
+  =============================================================*/
 function startParallels(table)
 {
 	table.find('tbody > tr.complete').remove();
@@ -259,6 +262,7 @@ function startParallels(table)
 		})
 	;
 }
+
 function startParallel(tr)
 {
 	var tokusc = tr.attr('tokusc');
@@ -267,82 +271,184 @@ function startParallel(tr)
 
 	tr.addClass('doing');
 
-	step1();
+	step1(function ()
+	{
+		step2(function ()
+		{
+			tr.removeClass('doing');
 
-	function step1()
+			if (tr.parent().find('tr.doing').length === 0)
+			{
+				onComplete(tr.closest('table'));
+			}
+		});
+	});
+
+	function step1(callback)
 	{
 		tr.addClass('processing');
 		process
 			.text('データ集計中です・・・')
 			.prepend($('<i>').addClass('fa fa-spinner fa-spin fa-pulse'))
 		;
-		$.ajax({
-			url: 'process.php'
-			, data: { tokusc: tokusc }
-		})
-		.done(function (data)
+		doProcess(tr, function (data)
 		{
 			tr.removeClass('processing');
 			process.text('データ集計が終了しました');
 			downloaded.text(data);
-			step2();
+			callback();
 		})
-		.fail(function (xhr, error, thrown)
-		{
-			process.text(thrown);
-			tr.addClass('error');
-		})
-		;
 	}
-	function step2()
+	function step2(callback)
 	{
 		tr.addClass('downloading');
 		process
 			.text('データをダウンロード中です・・・')
 			.prepend($('<i>').addClass('fa fa-spinner fa-spin fa-pulse'))
 		;
-		$.ajax({
-			url: 'download.php'
-			, data: { tokusc: tokusc }
-		})
-		.done(function (data)
+		doDownload(tr, function (data)
 		{
 			tr.removeClass('downloading');
 			process.text('ダウンロードが終了しました');
 			downloaded.text(data);
-			step3();
-		})
-		.fail(function (xhr, error, thrown)
-		{
-			process.text(thrown);
-			tr.addClass('error');
-		})
-		;
-	}
-	function step3()
-	{
-		tr.removeClass('doing');
-
-		if (tr.parent().find('tr.doing').length === 0)
-		{
-			onComplete(tr.closest('table'));
-		}
+			callback();
+		});
 	}
 }
-function startSequencials(table)
+/*=============================================================
+  = sequential
+  =============================================================*/
+function startSequentials(table)
 {
 	var tbody = table.find('tbody');
 	tbody.find('tr.complete').remove();
-	tbody.find('tr').each(function ()
+
+	var tr = tbody.find('tr:first-child');
+
+	step1(tr);
+
+	function step1(tr)
 	{
-		var tr = $(this);
-	});
+		if (tr.length === 0)
+		{
+			onComplete(table);
+			return;
+		}
+		
+		
+		step2(tr, function (data)
+		{
+			step3(tr, function (data)
+			{		
+				step1(tr.next());
+			});
+		});
+	}
+	function step2(tr, callback)
+	{
+		var tokusc = tr.attr('tokusc');
+		var process = tr.find('td.process');
+		var downloaded = tr.find('td.downloaded');
+
+		tr.addClass('processing');
+		process
+			.text('データ集計中です・・・')
+			.prepend($('<i>').addClass('fa fa-spinner fa-spin fa-pulse'))
+		;
+		doProcess(tr, function (data)
+		{
+			tr.removeClass('processing');
+			process.text('データ集計が終了しました');
+			downloaded.text(data);
+			callback(data);
+		})
+	}
+	function step3(tr, callback)
+	{
+		var tokusc = tr.attr('tokusc');
+		var process = tr.find('td.process');
+		var downloaded = tr.find('td.downloaded');
+		
+		tr.addClass('downloading');
+		process
+			.text('データをダウンロード中です・・・')
+			.prepend($('<i>').addClass('fa fa-spinner fa-spin fa-pulse'))
+		;
+		doDownload(tr, function (data)
+		{
+			tr.removeClass('downloading');
+			process.text('ダウンロードが終了しました');
+			downloaded.text(data);
+			callback();
+		});
+	}
 }
+function startSequential(tr)
+{
+	var tokusc = tr.attr('tokusc');
+	var process = tr.find('td.process');
+	var downloaded = tr.find('td.downloaded');
+
+	step1();
+
+	function step1()
+	{
+
+	}	
+}
+/*=============================================================
+  = onComplete
+  =============================================================*/
 function onComplete(table)
 {
 	var tbody = table.find('tbody');
 	var tr = $('<tr>').appendTo(tbody).addClass('complete');
 	var td = $('<td>').appendTo(tr).attr('colspan', table.find('thead > tr > th').length).text('complete!!');
+}
+/*=============================================================
+  = ajax
+  =============================================================*/
+function doProcess(tr, callback)
+{
+	var tokusc = tr.attr('tokusc');
+	var process = tr.find('td.process');
+	var downloaded = tr.find('td.downloaded');
+
+	$.ajax({
+		url: 'process.php'
+		, data: { tokusc: tokusc }
+	})
+	.done(function (data)
+	{
+		callback(data);
+	})
+	.fail(function (xhr, error, thrown)
+	{
+		process.text(thrown);
+		tr.addClass('error');
+	})
+	;
+}
+function doDownload(tr, callback)
+{
+	var tokusc = tr.attr('tokusc');
+	var process = tr.find('td.process');
+	var downloaded = tr.find('td.downloaded');
+
+	$.ajax({
+		url: 'download.php'
+		, data: { tokusc: tokusc }
+	})
+	.done(function (data)
+	{
+		callback(data);
+	})
+	.fail(function (xhr, error, thrown)
+	{
+		process.text(thrown);
+		tr.addClass('error');
+	})
+	;
 }
 </script>
 </body>
